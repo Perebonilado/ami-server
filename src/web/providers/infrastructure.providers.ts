@@ -69,6 +69,7 @@ export const adapterProviders: Provider[] = [
           config.getOrThrow<string>('BANK_BASE_URL'),
           config.getOrThrow<string>('GATEWAY_KEY'),
           intraBankCode,
+          config.getOrThrow<string>('XTRADOT_MERCHANT_ID'),
           Number(config.getOrThrow<string>('BANK_CALLS_PER_MINUTE')),
           BankRequestModel,
         );

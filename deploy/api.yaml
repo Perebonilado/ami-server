@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/perebonilado/ami-server:v1
+          image: ghcr.io/perebonilado/ami-server:v2
           ports:
             - containerPort: 8080
           envFrom:
@@ -31,6 +31,7 @@ spec:
             - { name: BANK_BASE_URL, value: http://bank-api.ingress-apisix.svc.cluster.local/v1 }
             - { name: BANK_CALLS_PER_MINUTE, value: "40" }
             - { name: XTRADOT_NIP_CODE, value: "000014" }
+            - { name: XTRADOT_MERCHANT_ID, value: mer_204 }
             - { name: AMI_BANK_ACCOUNT, value: "0123456793" }
             - { name: ALLOW_PAYMENT_SIMULATION, value: "false" }
             - { name: WEBHOOK_URL, value: http://api.team04.svc.cluster.local/api/hooks/forge }

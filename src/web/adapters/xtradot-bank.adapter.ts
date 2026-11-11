@@ -51,6 +51,7 @@ export class XtradotBankAdapter implements BankPort {
     private readonly baseUrl: string,
     private readonly apiKey: string,
     private readonly intraBankCode: string,
+    private readonly merchantId: string,
     callsPerMinute: number,
     private readonly requestLog: typeof BankRequestModel,
   ) {
@@ -62,6 +63,7 @@ export class XtradotBankAdapter implements BankPort {
       idempotencyKey: request.idempotencyKey,
       reference: request.reference,
       body: {
+        merchant_id: this.merchantId,
         amount: Number(koboToNaira(request.amountKobo)),
         currency: 'NGN',
         reference: request.reference,
