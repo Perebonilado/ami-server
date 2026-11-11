@@ -1,0 +1,9 @@
+export const USER_REPOSITORY = Symbol('UserRepository');
+export const REVOKED_TOKEN_REPOSITORY = Symbol('RevokedTokenRepository');
+export const VIDEO_REPOSITORY = Symbol('VideoRepository');
+export const LICENCE_REPOSITORY = Symbol('LicenceRepository');
+export const PAYMENT_REPOSITORY = Symbol('PaymentRepository');
+export const LEDGER_REPOSITORY = Symbol('LedgerRepository');
+export const PAYOUT_ACCOUNT_REPOSITORY = Symbol('PayoutAccountRepository');
+export const PAYOUT_REPOSITORY = Symbol('PayoutRepository');
+export const WEBHOOK_REPOSITORY = Symbol('WebhookRepository');

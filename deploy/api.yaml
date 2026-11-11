@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: api }
+  template:
+    metadata:
+      labels: { app: api }
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/perebonilado/ami-server:v1
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef: { name: huawei-gateway, optional: true }
+            - secretRef: { name: ami-secrets }
+          env:
+            - { name: NODE_ENV, value: production }
+            - { name: PORT, value: "8080" }
+            - { name: APP_URL, value: https://team04.xtradot.co }
+            - { name: FRONTEND_URL, value: https://team04.xtradot.co }
+            - { name: JWT_TTL, value: 7d }
+            - { name: COOKIE_SECURE, value: "true" }
+            - { name: BANK_ADAPTER, value: xtradot }
+            - { name: BANK_BASE_URL, value: http://bank-api.ingress-apisix.svc.cluster.local/v1 }
+            - { name: BANK_CALLS_PER_MINUTE, value: "40" }
+            - { name: XTRADOT_NIP_CODE, value: "000014" }
+            - { name: AMI_BANK_ACCOUNT, value: "0123456793" }
+            - { name: ALLOW_PAYMENT_SIMULATION, value: "false" }
+            - { name: WEBHOOK_URL, value: http://api.team04.svc.cluster.local/api/hooks/forge }
+            - { name: AI_ADAPTER, value: maas }
+            - { name: MAAS_BASE_URL, value: http://huawei-maas.ingress-apisix.svc.cluster.local/openai/v1 }
+            - { name: MAAS_MODELS, value: "deepseek-v4.1-flash,glm-5.2,glm-5.1" }
+            - { name: AI_CALLS_PER_MINUTE, value: "15" }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+spec:
+  selector: { app: api }
+  ports:
+    - port: 80
+      targetPort: 8080
