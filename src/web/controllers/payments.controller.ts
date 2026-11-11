@@ -7,6 +7,7 @@ import { PaymentStatus } from '../../business/domain/values/enums.js';
 import { LicenceQuery } from '../../query/licence.query.js';
 import { PaymentSessionQuery } from '../../query/payment-session.query.js';
 import { CurrentUser } from '../security/current-user.decorator.js';
+import { ReturnOrigins } from '../security/return-origins.js';
 import { SessionGuard } from '../security/session.guard.js';
 import type { AuthenticatedUser } from '../security/session.service.js';
 import { PaymentCallbackDto, SimulatePaymentDto } from '../validation/checkout.dto.js';
@@ -14,7 +15,7 @@ import { PaymentCallbackDto, SimulatePaymentDto } from '../validation/checkout.d
 @Controller('payments')
 export class PaymentsController {
   private readonly logger = new Logger(PaymentsController.name);
-  private readonly frontendUrl: string;
+  private readonly returns: ReturnOrigins;
 
   constructor(
     private readonly confirmPaymentHandler: ConfirmPaymentHandler,
@@ -23,18 +24,28 @@ export class PaymentsController {
     private readonly licenceQuery: LicenceQuery,
     config: ConfigService,
   ) {
-    this.frontendUrl = config.getOrThrow<string>('FRONTEND_URL');
+    this.returns = new ReturnOrigins(config);
   }
 
   @Get('callback')
   async callback(@Query() dto: PaymentCallbackDto, @Res() response: Response) {
+    await this.returnFromBank(dto, response, 0);
+  }
+
+  @Get('callback/:to')
+  async callbackTo(@Param('to') to: string, @Query() dto: PaymentCallbackDto, @Res() response: Response) {
+    await this.returnFromBank(dto, response, Number(to) || 0);
+  }
+
+  private async returnFromBank(dto: PaymentCallbackDto, response: Response, to: number) {
+    const frontendUrl = this.returns.frontendFor(to);
     const reference = encodeURIComponent(dto.reference);
-    let target = `${this.frontendUrl}/pay/${reference}?status=failed`;
+    let target = `${frontendUrl}/pay/${reference}?status=failed`;
     try {
       const { data } = await this.confirmPaymentHandler.handle({ reference: dto.reference });
-      if (data.status === PaymentStatus.PAID) target = `${this.frontendUrl}/licences/${data.licenceNumber}?paid=1`;
+      if (data.status === PaymentStatus.PAID) target = `${frontendUrl}/licences/${data.licenceNumber}?paid=1`;
       else if (data.status === PaymentStatus.PENDING || data.status === PaymentStatus.INITIATED) {
-        target = `${this.frontendUrl}/pay/${reference}`;
+        target = `${frontendUrl}/pay/${reference}`;
       }
     } catch (error) {
       this.logger.warn(`Payment callback for ${dto.reference} could not be confirmed: ${String(error)}`);

@@ -20,6 +20,7 @@ export interface CreateCheckoutRequest {
   videoId: string;
   part: LicencePart | null;
   duration: LicenceDuration;
+  callbackUrl?: string;
 }
 
 export interface CheckoutResult {
@@ -103,7 +104,7 @@ export class CreateCheckoutHandler extends AbstractRequestHandlerTemplate<Create
         customerEmail: buyer.email,
         customerName: buyer.props.businessName ?? buyer.name,
         narration: `Àmì licence ${licence.licenceNumber}`,
-        callbackUrl: this.callbackUrl,
+        callbackUrl: request.callbackUrl ?? this.callbackUrl,
       });
       payment.props.paymentUrl = session.paymentUrl;
       payment.props.bankRequestId = session.bankRequestId;

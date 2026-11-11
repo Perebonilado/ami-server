@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/perebonilado/ami-server:v2
+          image: ghcr.io/perebonilado/ami-server:v3
           ports:
             - containerPort: 8080
           envFrom:
@@ -25,6 +25,7 @@ spec:
             - { name: PORT, value: "8080" }
             - { name: APP_URL, value: https://team04.xtradot.co }
             - { name: FRONTEND_URL, value: https://team04.xtradot.co }
+            - { name: DEMO_ORIGINS, value: "http://localhost:8088" }
             - { name: JWT_TTL, value: 7d }
             - { name: COOKIE_SECURE, value: "true" }
             - { name: BANK_ADAPTER, value: xtradot }
