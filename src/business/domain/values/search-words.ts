@@ -18,3 +18,12 @@ export function searchWords(text: string): string[] {
     ),
   ];
 }
+
+export function wordForms(word: string): string[] {
+  if (word.length <= 3) return [word];
+  const forms = [word];
+  if (word.endsWith('ies')) forms.push(`${word.slice(0, -3)}y`);
+  if (word.endsWith('es')) forms.push(word.slice(0, -2));
+  if (word.endsWith('s') && !word.endsWith('ss')) forms.push(word.slice(0, -1));
+  return forms;
+}

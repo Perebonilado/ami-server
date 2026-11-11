@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, type WhereOptions } from 'sequelize';
 import { VideoStatus } from '../business/domain/values/enums.js';
-import { normaliseQuery, searchWords } from '../business/domain/values/search-words.js';
+import { normaliseQuery, searchWords, wordForms } from '../business/domain/values/search-words.js';
 import type { AiPort, SearchIntent } from '../business/ports/ai.port.js';
 import type { ClockPort } from '../business/ports/clock.port.js';
 import { AI_PORT, CLOCK_PORT } from '../business/ports/tokens.js';
@@ -11,7 +11,7 @@ import { CREATOR_INCLUDE, videoJson } from './shared/serializers.js';
 
 const AI_MIN_WORDS = 3;
 const INTENT_TTL_MS = 24 * 60 * 60 * 1000;
-const MAX_TERMS = 20;
+const MAX_TERMS = 40;
 
 export interface SearchVideosInput {
   q?: string;
@@ -41,21 +41,35 @@ export class SearchVideosQuery {
     }
 
     const intent = words.length >= AI_MIN_WORDS ? await this.intent(query, words) : { keywords: [], category: null };
-    const terms = [...new Set([...words, ...intent.keywords.flatMap(searchWords)])].slice(0, MAX_TERMS);
+    const wordGroups = words.map(wordForms);
+    const termGroups = [...new Set([...words, ...intent.keywords.flatMap(searchWords)])].map(wordForms);
+    const terms = [...new Set(termGroups.flat())].slice(0, MAX_TERMS);
 
     const rows = await this.videos.findAll({
       where: { ...where, [Op.or]: terms.map((term) => ({ searchText: { [Op.like]: `%${term}%` } })) },
       include: [CREATOR_INCLUDE],
     });
 
+    const candidates = rows.map((row) => ({ row, tokens: tokenSet(row.searchText) }));
+    const weights = new Map(
+      termGroups.map((forms) => {
+        const found = candidates.filter((item) => matches(forms, item.tokens)).length;
+        return [forms[0], found ? Math.log(1 + candidates.length / found) : 0];
+      }),
+    );
+    const weigh = (groups: string[][]) => groups.reduce((total, forms) => total + (weights.get(forms[0]) ?? 0), 0);
+
     const needed = intent.keywords.length ? 1 : Math.ceil(words.length / 2);
-    const ranked = rows
-      .map((row) => {
-        const text = row.searchText;
-        const wordHits = words.filter((word) => text.includes(word)).length;
-        const termHits = terms.filter((term) => text.includes(term)).length;
-        const boost = intent.category && row.category === intent.category ? 2 : 0;
-        return { row, hits: intent.keywords.length ? termHits : wordHits, score: wordHits * 3 + termHits + boost };
+    const ranked = candidates
+      .map(({ row, tokens }) => {
+        const wordHits = wordGroups.filter((forms) => matches(forms, tokens));
+        const termHits = termGroups.filter((forms) => matches(forms, tokens));
+        const boost = intent.category && row.category === intent.category ? 1 : 0;
+        return {
+          row,
+          hits: intent.keywords.length ? termHits.length : wordHits.length,
+          score: weigh(wordHits) * 3 + weigh(termHits) + boost,
+        };
       })
       .filter((item) => item.hits >= needed)
       .sort((a, b) => b.score - a.score || (b.row.createdAt as Date).getTime() - (a.row.createdAt as Date).getTime());
@@ -84,4 +98,16 @@ export class SearchVideosQuery {
       return { keywords: words, category: null };
     }
   }
+}
+
+const PREFIX_MIN = 5;
+
+function tokenSet(text: string): Set<string> {
+  return new Set(text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean));
+}
+
+function matches(forms: string[], tokens: Set<string>): boolean {
+  return forms.some(
+    (form) => tokens.has(form) || (form.length >= PREFIX_MIN && [...tokens].some((token) => token.startsWith(form))),
+  );
 }
